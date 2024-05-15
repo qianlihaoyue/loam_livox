@@ -38,10 +38,12 @@
 
 int main( int argc, char **argv )
 {
-    ros::init( argc, argv, "scanRegistration" );
-    Laser_feature laser_feature;
+    rclcpp::init(argc, argv);
 
-    ros::spin();
+    rclcpp::spin(std::make_shared<Laser_feature>());
+
+    if (rclcpp::ok())
+        rclcpp::shutdown();
 
     return 0;
 }

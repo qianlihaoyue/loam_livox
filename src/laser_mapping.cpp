@@ -38,13 +38,19 @@
 
 int main( int argc, char **argv )
 {
-    ros::init( argc, argv, "laserMapping" );
+    rclcpp::init(argc, argv);
 
-    Laser_mapping laser_mapping;
+    auto laser_mapping = std::make_shared<Laser_mapping>();
 
-    std::thread mapping_process{ &Laser_mapping::process, &laser_mapping };
+    std::thread mapping_process{ &Laser_mapping::process, laser_mapping };
 
-    ros::spin();
+    rclcpp::spin(laser_mapping);
+
+    mapping_process.join();
+
+    if (rclcpp::ok())
+        rclcpp::shutdown();
+
     return 0;
 }
 // kate: indent-mode cstyle; indent-width 4; replace-tabs on;

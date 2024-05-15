@@ -48,22 +48,24 @@
 
 #include <Eigen/Eigen>
 #include <Eigen/Eigen>
-#include <nav_msgs/Odometry.h>
+#include <nav_msgs/msg/odometry.hpp>
 
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
-#include <ros/ros.h>
-#include <sensor_msgs/Imu.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <tf/transform_broadcaster.h>
-#include <tf/transform_datatypes.h>
+#include "rclcpp/rclcpp.hpp"
+#include <sensor_msgs/msg/imu.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <tf2_ros/transform_broadcaster.h>
+// #include <tf2_ros/transform_datatypes.h>
 
 #include "eigen_math.hpp"
 #include "tools/common.h"
 #include "tools/pcl_tools.hpp"
+
+#include <opencv2/opencv.hpp>
 
 #define PCL_DATA_SAVE_DIR "/home/ziv/data/loam_pc"
 
@@ -363,7 +365,6 @@ class Livox_laser
         int          critical_rm_point = e_pt_000 | e_pt_nan;
         float        neighbor_accumulate_xyz[ 3 ] = { 0.0, 0.0, 0.0 };
 
-        //cout << "Surface_thr = " << thr_surface_curvature << " , corner_thr = " << thr_corner_curvature<< " ,minimum_view_angle = " << minimum_view_angle << endl;
         for ( size_t idx = curvature_ssd_size; idx < pts_size - curvature_ssd_size; idx++ )
         {
             if ( m_pts_info_vec[ idx ].pt_type & critical_rm_point )
@@ -497,6 +498,9 @@ class Livox_laser
                 {
                     // TODO: handle this case.
                     std::cout << "First point should be normal!!!" << std::endl;
+                    pt_info->pt_2d_img << 0.01, 0.01;
+                    pt_info->polar_dis_sq2 = 0.0001;
+                    add_mask_of_point( pt_info, e_pt_000 );  
                     return 0;
                 }
                 else

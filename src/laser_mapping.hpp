@@ -1,3 +1,5 @@
+#pragma once
+
 // This is the Lidar Odometry And Mapping (LOAM) for solid-state lidar (for example: livox lidar),
 // which suffer form motion blur due the continously scan pattern and low range of fov.
 
@@ -39,12 +41,12 @@
 
 #include <ceres/ceres.h>
 #include <eigen3/Eigen/Dense>
-#include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <iostream>
 #include <math.h>
 #include <mutex>
-#include <nav_msgs/Odometry.h>
-#include <nav_msgs/Path.h>
+#include <nav_msgs/msg/odometry.hpp>
+#include <nav_msgs/msg/path.hpp>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/kdtree/kdtree_flann.h>
@@ -52,12 +54,12 @@
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <queue>
-#include <ros/ros.h>
-#include <sensor_msgs/Imu.h>
-#include <sensor_msgs/PointCloud2.h>
+#include "rclcpp/rclcpp.hpp"
+#include <sensor_msgs/msg/imu.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
 #include <string>
-#include <tf/transform_broadcaster.h>
-#include <tf/transform_datatypes.h>
+#include <tf2_ros/transform_broadcaster.h>
+// #include <tf2_ros/transform_datatypes.h>
 #include <thread>
 #include <vector>
 
@@ -96,26 +98,26 @@ using namespace Common_tools;
 
 struct Data_pair
 {
-    sensor_msgs::PointCloud2ConstPtr m_pc_corner;
-    sensor_msgs::PointCloud2ConstPtr m_pc_full;
-    sensor_msgs::PointCloud2ConstPtr m_pc_plane;
+    sensor_msgs::msg::PointCloud2::ConstSharedPtr m_pc_corner;
+    sensor_msgs::msg::PointCloud2::ConstSharedPtr m_pc_full;
+    sensor_msgs::msg::PointCloud2::ConstSharedPtr m_pc_plane;
     bool                             m_has_pc_corner = 0;
     bool                             m_has_pc_full = 0;
     bool                             m_has_pc_plane = 0;
 
-    void add_pc_corner( sensor_msgs::PointCloud2ConstPtr ros_pc )
+    void add_pc_corner( sensor_msgs::msg::PointCloud2::ConstSharedPtr ros_pc )
     {
         m_pc_corner = ros_pc;
         m_has_pc_corner = true;
     }
 
-    void add_pc_plane( sensor_msgs::PointCloud2ConstPtr ros_pc )
+    void add_pc_plane( sensor_msgs::msg::PointCloud2::ConstSharedPtr ros_pc )
     {
         m_pc_plane = ros_pc;
         m_has_pc_plane = true;
     }
 
-    void add_pc_full( sensor_msgs::PointCloud2ConstPtr ros_pc )
+    void add_pc_full( sensor_msgs::msg::PointCloud2::ConstSharedPtr ros_pc )
     {
         m_pc_full = ros_pc;
         m_has_pc_full = true;
@@ -127,7 +129,7 @@ struct Data_pair
     }
 };
 
-class Laser_mapping
+class Laser_mapping : public rclcpp::Node
 {
   public:
     int frameCount = 0;
@@ -210,7 +212,7 @@ class Laser_mapping
     std::map<double, Data_pair *> m_map_data_pair;
     std::queue<Data_pair *> m_queue_avail_data;
 
-    std::queue<nav_msgs::Odometry::ConstPtr> m_odom_que;
+    std::queue<nav_msgs::msg::Odometry::ConstSharedPtr> m_odom_que;
     std::mutex                               m_mutex_buf;
 
     pcl::VoxelGrid<PointType>                 m_down_sample_filter_corner;
@@ -220,7 +222,7 @@ class Laser_mapping
     std::vector<int>   m_point_search_Idx;
     std::vector<float> m_point_search_sq_dis;
 
-    nav_msgs::Path m_laser_after_mapped_path;
+    nav_msgs::msg::Path m_laser_after_mapped_path;
 
     int       m_if_save_to_pcd_files = 1;
     PCL_tools m_pcl_tools_aftmap;
@@ -228,14 +230,20 @@ class Laser_mapping
 
     File_logger m_file_logger;
 
-    ros::Publisher  m_pub_laser_cloud_surround, m_pub_laser_cloud_map, m_pub_laser_cloud_full_res, m_pub_odom_aft_mapped, m_pub_odom_aft_mapped_hight_frec, m_pub_laser_aft_mapped_path;
-    ros::NodeHandle m_ros_node_handle;
-    ros::Subscriber m_sub_laser_cloud_corner_last, m_sub_laser_cloud_surf_last, m_sub_laser_odom, m_sub_laser_cloud_full_res;
+    std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+
+    // rclcpp::Node m_ros_node_handle;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr  m_pub_laser_cloud_surround, m_pub_laser_cloud_map, m_pub_laser_cloud_full_res;
+    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr  m_pub_odom_aft_mapped, m_pub_odom_aft_mapped_hight_frec;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr m_pub_laser_aft_mapped_path;
+    
+    rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr m_sub_laser_cloud_corner_last, m_sub_laser_cloud_surf_last, m_sub_laser_cloud_full_res;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr m_sub_laser_odom;
 #if PUB_DEBUG_INFO
-    ros::Publisher m_pub_last_corner_pts, m_pub_last_surface_pts;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr m_pub_last_corner_pts, m_pub_last_surface_pts;
 #endif
 
-    Laser_mapping()
+    Laser_mapping(const rclcpp::NodeOptions& options = rclcpp::NodeOptions()) : Node("laserMapping", options)
     {
         m_laser_cloud_corner_array = new pcl::PointCloud<PointType>::Ptr[ m_laser_cloud_num ];
         m_laser_cloud_surface_array = new pcl::PointCloud<PointType>::Ptr[ m_laser_cloud_num ];
@@ -251,29 +259,36 @@ class Laser_mapping
         m_kdtree_corner_from_map = pcl::KdTreeFLANN<PointType>::Ptr( new pcl::KdTreeFLANN<PointType>() );
         m_kdtree_surf_from_map = pcl::KdTreeFLANN<PointType>::Ptr( new pcl::KdTreeFLANN<PointType>() );
 
+        tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
+
         for ( int i = 0; i < m_laser_cloud_num; i++ )
         {
             m_laser_cloud_corner_array[ i ].reset( new pcl::PointCloud<PointType>() );
             m_laser_cloud_surface_array[ i ].reset( new pcl::PointCloud<PointType>() );
         }
 
-        init_parameters( m_ros_node_handle );
+        init_parameters();
 
         //livox_corners
-        m_sub_laser_cloud_corner_last = m_ros_node_handle.subscribe<sensor_msgs::PointCloud2>( "/pc2_corners", 10000, &Laser_mapping::laserCloudCornerLastHandler, this );
-        m_sub_laser_cloud_surf_last = m_ros_node_handle.subscribe<sensor_msgs::PointCloud2>( "/pc2_surface", 10000, &Laser_mapping::laserCloudSurfLastHandler, this );
-        m_sub_laser_cloud_full_res = m_ros_node_handle.subscribe<sensor_msgs::PointCloud2>( "/pc2_full", 10000, &Laser_mapping::laserCloudFullResHandler, this );
+        auto cloud_corn_callback = [this](const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) -> void { laserCloudCornerLastHandler(msg); };
+        m_sub_laser_cloud_corner_last = this->create_subscription<sensor_msgs::msg::PointCloud2>("/pc2_corners", qos, cloud_corn_callback);
+        auto cloud_surf_callback = [this](const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) -> void { laserCloudSurfLastHandler(msg); };
+        m_sub_laser_cloud_surf_last = this->create_subscription<sensor_msgs::msg::PointCloud2>("/pc2_surface", qos, cloud_surf_callback);
+        auto cloud_full_callback = [this](const sensor_msgs::msg::PointCloud2::ConstSharedPtr msg) -> void { laserCloudFullResHandler(msg); };
+        m_sub_laser_cloud_full_res = this->create_subscription<sensor_msgs::msg::PointCloud2>("/pc2_full", qos, cloud_full_callback);
 
-        m_pub_laser_cloud_surround = m_ros_node_handle.advertise<sensor_msgs::PointCloud2>( "/laser_cloud_surround", 10000 );
+        // 发布者
+        m_pub_laser_cloud_surround = this->create_publisher<sensor_msgs::msg::PointCloud2>("/laser_cloud_surround", 1);
 #if PUB_DEBUG_INFO
-        m_pub_last_corner_pts = m_ros_node_handle.advertise<sensor_msgs::PointCloud2>( "/features_corners", 10000 );
-        m_pub_last_surface_pts = m_ros_node_handle.advertise<sensor_msgs::PointCloud2>( "/features_surface", 10000 );
+        m_pub_last_corner_pts = this->create_publisher<sensor_msgs::msg::PointCloud2>("/features_corners", 1);
+        m_pub_last_surface_pts = this->create_publisher<sensor_msgs::msg::PointCloud2>("/features_surface", 1);
 #endif
-        m_pub_laser_cloud_map = m_ros_node_handle.advertise<sensor_msgs::PointCloud2>( "/laser_cloud_map", 10000 );
-        m_pub_laser_cloud_full_res = m_ros_node_handle.advertise<sensor_msgs::PointCloud2>( "/velodyne_cloud_registered", 10000 );
-        m_pub_odom_aft_mapped = m_ros_node_handle.advertise<nav_msgs::Odometry>( "/aft_mapped_to_init", 10000 );
-        m_pub_odom_aft_mapped_hight_frec = m_ros_node_handle.advertise<nav_msgs::Odometry>( "/aft_mapped_to_init_high_frec", 10000 );
-        m_pub_laser_aft_mapped_path = m_ros_node_handle.advertise<nav_msgs::Path>( "/aft_mapped_path", 10000 );
+        m_pub_laser_cloud_map = this->create_publisher<sensor_msgs::msg::PointCloud2>("/laser_cloud_map", 1);
+        m_pub_laser_cloud_full_res = this->create_publisher<sensor_msgs::msg::PointCloud2>("/velodyne_cloud_registered", 1);
+        m_pub_odom_aft_mapped = this->create_publisher<nav_msgs::msg::Odometry>("/aft_mapped_to_init", 1);
+        m_pub_odom_aft_mapped_hight_frec = this->create_publisher<nav_msgs::msg::Odometry>("/aft_mapped_to_init_high_frec", 1);
+        m_pub_laser_aft_mapped_path = this->create_publisher<nav_msgs::msg::Path>("/aft_mapped_path", 1);
+  
 
         cout << "Laser_mapping init OK" << endl;
     };
@@ -310,50 +325,63 @@ class Laser_mapping
         }
     }
 
-    void init_parameters( ros::NodeHandle &nh )
+    void init_parameters()
     {
+        float lineRes = 0.0;
+        float planeRes = 0.0;
 
-        float lineRes = 0;
-        float planeRes = 0;
+        this->declare_parameter<float>("mapping_line_resolution", 0.4);
+        this->declare_parameter<float>("mapping_plane_resolution", 0.8);
+        this->declare_parameter<int>("icp_maximum_iteration", 20);
+        this->declare_parameter<int>("ceres_maximum_iteration", 20);
+        this->declare_parameter<int>("if_motion_deblur", 1);
 
-        nh.param<float>( "mapping_line_resolution", lineRes, 0.4 );
-        nh.param<float>( "mapping_plane_resolution", planeRes, 0.8 );
-        nh.param<int>( "icp_maximum_iteration", m_para_icp_max_iterations, 20 );
-        nh.param<int>( "ceres_maximum_iteration", m_para_cere_max_iterations, 20 );
-        nh.param<int>( "if_motion_deblur", MOTION_DEBLUR, 1 );
+        this->declare_parameter<float>("max_allow_incre_R", 200.0 / 50.0);
+        this->declare_parameter<float>("max_allow_incre_T", 100.0 / 50.0);
+        this->declare_parameter<float>("max_allow_final_cost", 1.0);
+        this->declare_parameter<int>("maximum_mapping_buffer", 5);
+        this->declare_parameter<int>("mapping_init_accumulate_frames", 50);
+        this->declare_parameter<int>("if_save_to_pcd_files", 0);
+        this->declare_parameter<std::string>("log_save_dir", "../");
+        this->declare_parameter<std::string>("pcd_save_dir", "./");
 
-        //MOTION_DEBLUR = 1;
-        nh.param<float>( "max_allow_incre_R", m_para_max_angular_rate, 200.0 / 50.0 );
-        nh.param<float>( "max_allow_incre_T", m_para_max_speed, 100.0 / 50.0 );
-        nh.param<float>( "max_allow_final_cost", m_max_final_cost, 1.0 );
-        nh.param<int>( "maximum_mapping_buffer", m_max_buffer_size, 5 );
-        nh.param<int>( "mapping_init_accumulate_frames", m_mapping_init_accumulate_frames, 50 );
+        this->get_parameter("mapping_line_resolution", lineRes);
+        this->get_parameter("mapping_plane_resolution", planeRes);
+        this->get_parameter("icp_maximum_iteration", m_para_icp_max_iterations);
+        this->get_parameter("ceres_maximum_iteration", m_para_cere_max_iterations);
+        this->get_parameter("if_motion_deblur", MOTION_DEBLUR);
+        this->get_parameter("max_allow_incre_R", m_para_max_angular_rate);
+        this->get_parameter("max_allow_incre_T", m_para_max_speed);
+        this->get_parameter("max_allow_final_cost", m_max_final_cost);
+        this->get_parameter("maximum_mapping_buffer", m_max_buffer_size);
+        this->get_parameter("mapping_init_accumulate_frames", m_mapping_init_accumulate_frames);
+        this->get_parameter("if_save_to_pcd_files", m_if_save_to_pcd_files);
 
-        string pcd_save_dir_name;
-        nh.param<int>( "if_save_to_pcd_files", m_if_save_to_pcd_files, 0 );
+        std::string log_save_dir_name;
+        std::string pcd_save_dir_name;
 
-        string log_save_dir_name;
-        nh.param<std::string>( "log_save_dir", log_save_dir_name, "../" );
-        m_file_logger.set_log_dir( log_save_dir_name );
-        m_file_logger.init( "mapping.log" );
+        this->get_parameter("log_save_dir", log_save_dir_name);
+        this->get_parameter("pcd_save_dir", pcd_save_dir_name);
 
-        if ( m_if_save_to_pcd_files )
+        m_file_logger.set_log_dir(log_save_dir_name);
+        m_file_logger.init("mapping.log");
+
+        if (m_if_save_to_pcd_files)
         {
-            nh.param<std::string>( "pcd_save_dir", pcd_save_dir_name, std::string( "./" ) );
-            m_pcl_tools_aftmap.set_save_dir_name( pcd_save_dir_name );
-            m_pcl_tools_raw.set_save_dir_name( pcd_save_dir_name );
+            m_pcl_tools_aftmap.set_save_dir_name(pcd_save_dir_name);
+            m_pcl_tools_raw.set_save_dir_name(pcd_save_dir_name);
         }
 
-        LOG_FILE_LINE( m_file_logger );
+        LOG_FILE_LINE(m_file_logger);
         *m_file_logger.get_ostream() << m_file_logger.version();
 
-        printf( "line resolution %f plane resolution %f \n", lineRes, planeRes );
-        m_file_logger.printf( "line resolution %f plane resolution %f \n", lineRes, planeRes );
-        m_down_sample_filter_corner.setLeafSize( lineRes, lineRes, lineRes );
-        m_down_sample_filter_surface.setLeafSize( planeRes, planeRes, planeRes );
+        RCLCPP_INFO(this->get_logger(), "line resolution %f plane resolution %f", lineRes, planeRes);
+        m_file_logger.printf("line resolution %f plane resolution %f \n", lineRes, planeRes);
+        m_down_sample_filter_corner.setLeafSize(lineRes, lineRes, lineRes);
+        m_down_sample_filter_surface.setLeafSize(planeRes, planeRes, planeRes);
 
-        m_filter_k_means.setMeanK( m_kmean_filter_count );
-        m_filter_k_means.setStddevMulThresh( m_kmean_filter_threshold );
+        m_filter_k_means.setMeanK(m_kmean_filter_count);
+        m_filter_k_means.setStddevMulThresh(m_kmean_filter_threshold);
     }
 
     void set_ceres_solver_bound( ceres::Problem &problem )
@@ -445,10 +473,10 @@ class Laser_mapping
         return points_size;
     }
 
-    void laserCloudCornerLastHandler( const sensor_msgs::PointCloud2ConstPtr &laserCloudCornerLast2 )
+    void laserCloudCornerLastHandler( const sensor_msgs::msg::PointCloud2::ConstSharedPtr &laserCloudCornerLast2 )
     {
         std::unique_lock<std::mutex> lock( m_mutex_buf );
-        Data_pair *                  data_pair = get_data_pair( laserCloudCornerLast2->header.stamp.toSec() );
+        Data_pair *                  data_pair = get_data_pair( laserCloudCornerLast2->header.stamp.nanosec * 1e-9 );
         data_pair->add_pc_corner( laserCloudCornerLast2 );
         if ( data_pair->is_completed() )
         {
@@ -456,10 +484,10 @@ class Laser_mapping
         }
     }
 
-    void laserCloudSurfLastHandler( const sensor_msgs::PointCloud2ConstPtr &laserCloudSurfLast2 )
+    void laserCloudSurfLastHandler( const sensor_msgs::msg::PointCloud2::ConstSharedPtr &laserCloudSurfLast2 )
     {
         std::unique_lock<std::mutex> lock( m_mutex_buf );
-        Data_pair *                  data_pair = get_data_pair( laserCloudSurfLast2->header.stamp.toSec() );
+        Data_pair *                  data_pair = get_data_pair( laserCloudSurfLast2->header.stamp.nanosec * 1e-9);
         data_pair->add_pc_plane( laserCloudSurfLast2 );
         if ( data_pair->is_completed() )
         {
@@ -467,10 +495,10 @@ class Laser_mapping
         }
     }
 
-    void laserCloudFullResHandler( const sensor_msgs::PointCloud2ConstPtr &laserCloudFullRes2 )
+    void laserCloudFullResHandler( const sensor_msgs::msg::PointCloud2::ConstSharedPtr &laserCloudFullRes2 )
     {
         std::unique_lock<std::mutex> lock( m_mutex_buf );
-        Data_pair *                  data_pair = get_data_pair( laserCloudFullRes2->header.stamp.toSec() );
+        Data_pair *                  data_pair = get_data_pair( laserCloudFullRes2->header.stamp.nanosec * 1e-9 );
         data_pair->add_pc_full( laserCloudFullRes2 );
         if ( data_pair->is_completed() )
         {
@@ -484,7 +512,7 @@ class Laser_mapping
     }
 
     //receive odomtry
-    void laserOdometryHandler( const nav_msgs::Odometry::ConstPtr &laserOdometry )
+    void laserOdometryHandler( const nav_msgs::msg::Odometry::ConstSharedPtr &laserOdometry )
     {
         m_mutex_buf.lock();
         m_odom_que.push( laserOdometry );
@@ -504,7 +532,7 @@ class Laser_mapping
         Eigen::Quaterniond q_w_curr = Eigen::Quaterniond( 1, 0, 0, 0 );
         Eigen::Vector3d    t_w_curr = Eigen::Vector3d::Zero();
 
-        nav_msgs::Odometry odomAftMapped;
+        nav_msgs::msg::Odometry odomAftMapped;
         odomAftMapped.header.frame_id = "/camera_init";
         odomAftMapped.child_frame_id = "/aft_mapped";
         odomAftMapped.header.stamp = laserOdometry->header.stamp;
@@ -515,7 +543,7 @@ class Laser_mapping
         odomAftMapped.pose.pose.position.x = t_w_curr.x();
         odomAftMapped.pose.pose.position.y = t_w_curr.y();
         odomAftMapped.pose.pose.position.z = t_w_curr.z();
-        m_pub_odom_aft_mapped_hight_frec.publish( odomAftMapped );
+        m_pub_odom_aft_mapped_hight_frec->publish( odomAftMapped );
     }
 
     void find_min_max_intensity( const pcl::PointCloud<PointType>::Ptr pc_ptr, float &min_I, float &max_I )
@@ -573,7 +601,7 @@ class Laser_mapping
                 m_mutex_buf.lock();
                 while ( m_queue_avail_data.size() >= ( unsigned int ) m_max_buffer_size )
                 {
-                    ROS_WARN( "Drop lidar frame in mapping for real time performance !!!" );
+                    RCLCPP_WARN(rclcpp::get_logger("LoamLivox"),  "Drop lidar frame in mapping for real time performance !!!" );
                     ( *m_file_logger.get_ostream() ) << "Drop lidar frame in mapping for real time performance !!!" << endl;
                     m_queue_avail_data.pop();
                 }
@@ -581,7 +609,7 @@ class Laser_mapping
                 m_queue_avail_data.pop();
                 m_mutex_buf.unlock();
 
-                m_time_pc_corner_past = current_data_pair->m_pc_corner->header.stamp.toSec();
+                m_time_pc_corner_past = current_data_pair->m_pc_corner->header.stamp.nanosec * 1e-9;
 
                 if ( first_time_stamp < 0 )
                 {
@@ -1186,24 +1214,24 @@ class Laser_mapping
                 }
                 else
                 {
-                    ROS_WARN( "time Map corner and surf num are not enough" );
+                    RCLCPP_WARN(rclcpp::get_logger("LoamLivox"),  "time Map corner and surf num are not enough" );
                 }
 
                 if ( PUB_DEBUG_INFO )
                 {
                     pcl::PointCloud<PointType> pc_feature_pub_corners, pc_feature_pub_surface;
-                    sensor_msgs::PointCloud2   laserCloudMsg;
+                    sensor_msgs::msg::PointCloud2   laserCloudMsg;
 
                     pointcloudAssociateToMap( *m_laser_cloud_surf_last, pc_feature_pub_surface, g_if_undistore );
                     pcl::toROSMsg( pc_feature_pub_surface, laserCloudMsg );
-                    laserCloudMsg.header.stamp = ros::Time().fromSec( m_time_odom );
+                    laserCloudMsg.header.stamp = rclcpp::Time(m_time_odom, RCL_ROS_TIME);;
                     laserCloudMsg.header.frame_id = "/camera_init";
-                    m_pub_last_surface_pts.publish( laserCloudMsg );
+                    m_pub_last_surface_pts->publish( laserCloudMsg );
                     pointcloudAssociateToMap( *m_laser_cloud_corner_last, pc_feature_pub_corners, g_if_undistore );
                     pcl::toROSMsg( pc_feature_pub_corners, laserCloudMsg );
-                    laserCloudMsg.header.stamp = ros::Time().fromSec( m_time_odom );
+                    laserCloudMsg.header.stamp = rclcpp::Time(m_time_odom, RCL_ROS_TIME);;
                     laserCloudMsg.header.frame_id = "/camera_init";
-                    m_pub_last_corner_pts.publish( laserCloudMsg );
+                    m_pub_last_corner_pts->publish( laserCloudMsg );
                 }
 
                 for ( int i = 0; i < laser_corner_pt_num; i++ )
@@ -1296,11 +1324,11 @@ class Laser_mapping
                             *m_laser_cloud_surround += *m_laser_cloud_surface_array[ ind ];
                         }
 
-                        sensor_msgs::PointCloud2 laserCloudSurround3;
+                        sensor_msgs::msg::PointCloud2 laserCloudSurround3;
                         pcl::toROSMsg( *m_laser_cloud_surround, laserCloudSurround3 );
-                        laserCloudSurround3.header.stamp = ros::Time().fromSec( m_time_odom );
+                        laserCloudSurround3.header.stamp = rclcpp::Time(m_time_odom, RCL_ROS_TIME);;
                         laserCloudSurround3.header.frame_id = "/camera_init";
-                        m_pub_laser_cloud_surround.publish( laserCloudSurround3 );
+                        m_pub_laser_cloud_surround->publish( laserCloudSurround3 );
 
                         if ( m_if_save_to_pcd_files )
                         {
@@ -1318,11 +1346,11 @@ class Laser_mapping
                             laserCloudMap += *m_laser_cloud_surface_array[ i ];
                         }
 
-                        sensor_msgs::PointCloud2 laserCloudMsg;
+                        sensor_msgs::msg::PointCloud2 laserCloudMsg;
                         pcl::toROSMsg( laserCloudMap, laserCloudMsg );
-                        laserCloudMsg.header.stamp = ros::Time().fromSec( m_time_odom );
+                        laserCloudMsg.header.stamp = rclcpp::Time(m_time_odom, RCL_ROS_TIME);;
                         laserCloudMsg.header.frame_id = "/camera_init";
-                        m_pub_laser_cloud_map.publish( laserCloudMsg );
+                        m_pub_laser_cloud_map->publish( laserCloudMsg );
                     }
                 }
 
@@ -1332,21 +1360,21 @@ class Laser_mapping
                 {
                     pointAssociateToMap( &m_laser_cloud_full_res->points[ i ], &m_laser_cloud_full_res->points[ i ], refine_blur( m_laser_cloud_full_res->points[ i ].intensity, m_minimum_pt_time_stamp, m_maximum_pt_time_stamp ), 1 );
                 }
-                sensor_msgs::PointCloud2 laserCloudFullRes3;
+                sensor_msgs::msg::PointCloud2 laserCloudFullRes3;
                 pcl::toROSMsg( *m_laser_cloud_full_res, laserCloudFullRes3 );
-                laserCloudFullRes3.header.stamp = ros::Time().fromSec( m_time_odom );
+                laserCloudFullRes3.header.stamp = rclcpp::Time(m_time_odom, RCL_ROS_TIME);;
                 laserCloudFullRes3.header.frame_id = "/camera_init";
-                m_pub_laser_cloud_full_res.publish( laserCloudFullRes3 ); //single_frame_with_pose_tranfromed
+                m_pub_laser_cloud_full_res->publish( laserCloudFullRes3 ); //single_frame_with_pose_tranfromed
 
                 if ( m_if_save_to_pcd_files )
                 {
                     m_pcl_tools_aftmap.save_to_pcd_files( "aft_mapp", *m_laser_cloud_full_res, 1 );
                 }
 
-                nav_msgs::Odometry odomAftMapped;
+                nav_msgs::msg::Odometry odomAftMapped;
                 odomAftMapped.header.frame_id = "/camera_init";
                 odomAftMapped.child_frame_id = "/aft_mapped";
-                odomAftMapped.header.stamp = ros::Time().fromSec( m_time_odom );
+                odomAftMapped.header.stamp = rclcpp::Time(m_time_odom, RCL_ROS_TIME);;
                 if ( 1 )
                 {
                     odomAftMapped.pose.pose.orientation.x = m_q_w_curr.x();
@@ -1376,28 +1404,50 @@ class Laser_mapping
                     odomAftMapped.pose.pose.position.y = t_pub.y();
                     odomAftMapped.pose.pose.position.z = t_pub.z();
                 }
-                m_pub_odom_aft_mapped.publish( odomAftMapped ); // name: Odometry aft_mapped_to_init
+                m_pub_odom_aft_mapped->publish( odomAftMapped ); // name: Odometry aft_mapped_to_init
 
-                geometry_msgs::PoseStamped laserAfterMappedPose;
+                geometry_msgs::msg::PoseStamped laserAfterMappedPose;
                 laserAfterMappedPose.header = odomAftMapped.header;
                 laserAfterMappedPose.pose = odomAftMapped.pose.pose;
                 m_laser_after_mapped_path.header.stamp = odomAftMapped.header.stamp;
                 m_laser_after_mapped_path.header.frame_id = "/camera_init";
                 m_laser_after_mapped_path.poses.push_back( laserAfterMappedPose );
-                m_pub_laser_aft_mapped_path.publish( m_laser_after_mapped_path );
+                m_pub_laser_aft_mapped_path->publish( m_laser_after_mapped_path );
 
-                static tf::TransformBroadcaster br;
-                tf::Transform                   transform;
-                tf::Quaternion                  q;
-                transform.setOrigin( tf::Vector3( m_t_w_curr( 0 ),
-                                                  m_t_w_curr( 1 ),
-                                                  m_t_w_curr( 2 ) ) );
-                q.setW( m_q_w_curr.w() );
-                q.setX( m_q_w_curr.x() );
-                q.setY( m_q_w_curr.y() );
-                q.setZ( m_q_w_curr.z() );
-                transform.setRotation( q );
-                br.sendTransform( tf::StampedTransform( transform, odomAftMapped.header.stamp, "/camera_init", "/aft_mapped" ) );
+                // static tf::TransformBroadcaster br;
+                // tf::Transform                   transform;
+                // tf::Quaternion                  q;
+                // transform.setOrigin( tf::Vector3( m_t_w_curr( 0 ),
+                //                                   m_t_w_curr( 1 ),
+                //                                   m_t_w_curr( 2 ) ) );
+                // q.setW( m_q_w_curr.w() );
+                // q.setX( m_q_w_curr.x() );
+                // q.setY( m_q_w_curr.y() );
+                // q.setZ( m_q_w_curr.z() );
+                // transform.setRotation( q );
+                // br.sendTransform( tf2::StampedTransform( transform, odomAftMapped.header.stamp, "/camera_init", "/aft_mapped" ) );
+
+                // static tf2_ros::TransformBroadcaster tf_broadcaster_(this);
+                geometry_msgs::msg::TransformStamped transform_stamped;
+
+                // 设置时间戳和坐标系
+                transform_stamped.header.stamp = this->get_clock()->now();
+                transform_stamped.header.frame_id = "/camera_init";
+                transform_stamped.child_frame_id = "/aft_mapped";
+
+                // 设置位移
+                transform_stamped.transform.translation.x = m_t_w_curr(0);
+                transform_stamped.transform.translation.y = m_t_w_curr(1);
+                transform_stamped.transform.translation.z = m_t_w_curr(2);
+
+                // 设置旋转
+                transform_stamped.transform.rotation.w = m_q_w_curr.w();
+                transform_stamped.transform.rotation.x = m_q_w_curr.x();
+                transform_stamped.transform.rotation.y = m_q_w_curr.y();
+                transform_stamped.transform.rotation.z = m_q_w_curr.z();
+
+                // 发布变换
+                tf_broadcaster_->sendTransform(transform_stamped);
 
                 frameCount++;
             }

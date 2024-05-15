@@ -1,0 +1,31 @@
+/**:
+  ros__parameters:
+
+    scan_line: 16
+    lidar_type: livox
+    # if 1, do mapping 10 Hz, if 2, do mapping 5 Hz. Suggest to use 1, it will adjust frequence automaticlly
+    mapping_skip_frame: 1
+    # remove too closed points
+    minimum_range: 0.1
+    # Debug save file option
+    if_save_to_pcd_files: 0
+    pcd_save_dir: "$(env HOME)/Loam_livox_pcd"
+    log_save_dir: "$(env HOME)/Loam_livox_log"
+    # Parameters for feature extraction
+    mapping_line_resolution: 0.05
+    mapping_plane_resolution: 1.2
+    livox_min_sigma: 7e-4
+    livox_min_dis: 0.1
+    corner_curvature: 0.01
+    surface_curvature: 0.005
+    minimum_view_angle: 5.0
+    # Parameters for optimization
+    max_allow_incre_R: 20.0
+    max_allow_incre_T: 0.30
+    max_allow_final_cost: 1.0
+    icp_maximum_iteration: 6
+    ceres_maximum_iteration: 100
+    if_motion_deblur: 0
+    # 0 = odom, 1 = mapping
+    odom_mode: 0
+    maximum_mapping_buffer: 5000000

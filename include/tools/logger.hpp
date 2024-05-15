@@ -40,7 +40,7 @@ namespace Common_tools // Commond tools
         std::map< string, std::ostream * > m_map_file_os;
         char m_temp_char[10000];
         string m_temp_string;
-        string m_save_dir_name = string ( "/home/ziv/data/" );
+        string m_save_dir_name = string ( "/home/qianliyue/rosdev2/logs/" );
         
         void release()
         {
@@ -91,12 +91,12 @@ namespace Common_tools // Commond tools
             
             if ( ofs->is_open() )
             {
-                cout << "Open " << _file_name << " successful." << endl;
+                cout << "Open " << m_temp_char << " successful." << endl;
                 m_map_file_os.insert ( std::pair<string, std::ostream*> ( prefix_name, ofs ) );
             }
             else
             {
-                cout << "Fail to open " << _file_name  << endl;
+                cout << "Fail to open " << m_temp_char  << endl;
                 m_map_file_os.insert ( std::pair<string, std::ostream*> ( prefix_name, &std::cout ) );
             }
         };
