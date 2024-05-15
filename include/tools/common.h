@@ -40,74 +40,47 @@
 #include <cmath>
 
 #include <pcl/point_types.h>
-#define printf_line printf( " %s %d \r\n", __FILE__, __LINE__ );
+#define printf_line printf(" %s %d \r\n", __FILE__, __LINE__);
 typedef pcl::PointXYZI PointType;
 
-inline double rad2deg(double radians)
-{
-  return radians * 180.0 / M_PI;
-}
+inline double rad2deg(double radians) { return radians * 180.0 / M_PI; }
 
-inline double deg2rad(double degrees)
-{
-  return degrees * M_PI / 180.0;
-}
+inline double deg2rad(double degrees) { return degrees * M_PI / 180.0; }
 
 #include <rclcpp/rclcpp.hpp>
 
-rmw_qos_profile_t qos_profile{
-    RMW_QOS_POLICY_HISTORY_KEEP_LAST,
-    1,
-    RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT,
-    RMW_QOS_POLICY_DURABILITY_VOLATILE,
-    RMW_QOS_DEADLINE_DEFAULT,
-    RMW_QOS_LIFESPAN_DEFAULT,
-    RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT,
-    RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT,
-    false
-};
+rmw_qos_profile_t qos_profile{RMW_QOS_POLICY_HISTORY_KEEP_LAST,
+                              1,
+                              RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT,
+                              RMW_QOS_POLICY_DURABILITY_VOLATILE,
+                              RMW_QOS_DEADLINE_DEFAULT,
+                              RMW_QOS_LIFESPAN_DEFAULT,
+                              RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT,
+                              RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT,
+                              false};
 
-auto qos = rclcpp::QoS(
-    rclcpp::QoSInitialization(
-        qos_profile.history,
-        qos_profile.depth
-    ),
-    qos_profile);
+auto qos = rclcpp::QoS(rclcpp::QoSInitialization(qos_profile.history, qos_profile.depth), qos_profile);
 
-rmw_qos_profile_t qos_profile_imu{
-    RMW_QOS_POLICY_HISTORY_KEEP_LAST,
-    2000,
-    RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT,
-    RMW_QOS_POLICY_DURABILITY_VOLATILE,
-    RMW_QOS_DEADLINE_DEFAULT,
-    RMW_QOS_LIFESPAN_DEFAULT,
-    RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT,
-    RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT,
-    false
-};
+rmw_qos_profile_t qos_profile_imu{RMW_QOS_POLICY_HISTORY_KEEP_LAST,
+                                  2000,
+                                  RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT,
+                                  RMW_QOS_POLICY_DURABILITY_VOLATILE,
+                                  RMW_QOS_DEADLINE_DEFAULT,
+                                  RMW_QOS_LIFESPAN_DEFAULT,
+                                  RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT,
+                                  RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT,
+                                  false};
 
-auto qos_imu = rclcpp::QoS(
-    rclcpp::QoSInitialization(
-        qos_profile_imu.history,
-        qos_profile_imu.depth
-    ),
-    qos_profile_imu);
+auto qos_imu = rclcpp::QoS(rclcpp::QoSInitialization(qos_profile_imu.history, qos_profile_imu.depth), qos_profile_imu);
 
-rmw_qos_profile_t qos_profile_lidar{
-    RMW_QOS_POLICY_HISTORY_KEEP_LAST,
-    5,
-    RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT,
-    RMW_QOS_POLICY_DURABILITY_VOLATILE,
-    RMW_QOS_DEADLINE_DEFAULT,
-    RMW_QOS_LIFESPAN_DEFAULT,
-    RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT,
-    RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT,
-    false
-};
+rmw_qos_profile_t qos_profile_lidar{RMW_QOS_POLICY_HISTORY_KEEP_LAST,
+                                    5,
+                                    RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT,
+                                    RMW_QOS_POLICY_DURABILITY_VOLATILE,
+                                    RMW_QOS_DEADLINE_DEFAULT,
+                                    RMW_QOS_LIFESPAN_DEFAULT,
+                                    RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT,
+                                    RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT,
+                                    false};
 
-auto qos_lidar = rclcpp::QoS(
-    rclcpp::QoSInitialization(
-        qos_profile_lidar.history,
-        qos_profile_lidar.depth
-    ),
-    qos_profile_lidar);
+auto qos_lidar = rclcpp::QoS(rclcpp::QoSInitialization(qos_profile_lidar.history, qos_profile_lidar.depth), qos_profile_lidar);

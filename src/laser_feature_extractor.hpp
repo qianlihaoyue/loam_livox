@@ -108,7 +108,7 @@ public:
 
     Laser_feature(const rclcpp::NodeOptions &options = rclcpp::NodeOptions()) : Node("scanRegistration", options) {
         m_init_timestamp = this->get_clock()->now();
-    
+
         this->declare_parameter<std::string>("lid_topic", "laser_points");
         this->declare_parameter<std::string>("lidar_type", "livox");
         this->declare_parameter<int>("scan_line", 16);
@@ -237,7 +237,6 @@ public:
 
             if (laserCloudScans.size() <= 5)  // less than 5 scan
             {
-
                 return;
             }
 

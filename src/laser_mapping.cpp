@@ -36,20 +36,18 @@
 
 #include "laser_mapping.hpp"
 
-int main( int argc, char **argv )
-{
+int main(int argc, char **argv) {
     rclcpp::init(argc, argv);
 
     auto laser_mapping = std::make_shared<Laser_mapping>();
 
-    std::thread mapping_process{ &Laser_mapping::process, laser_mapping };
+    std::thread mapping_process{&Laser_mapping::process, laser_mapping};
 
     rclcpp::spin(laser_mapping);
 
     mapping_process.join();
 
-    if (rclcpp::ok())
-        rclcpp::shutdown();
+    if (rclcpp::ok()) rclcpp::shutdown();
 
     return 0;
 }

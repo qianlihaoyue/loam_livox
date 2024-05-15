@@ -36,14 +36,12 @@
 
 #include "laser_feature_extractor.hpp"
 
-int main( int argc, char **argv )
-{
+int main(int argc, char **argv) {
     rclcpp::init(argc, argv);
 
     rclcpp::spin(std::make_shared<Laser_feature>());
 
-    if (rclcpp::ok())
-        rclcpp::shutdown();
+    if (rclcpp::ok()) rclcpp::shutdown();
 
     return 0;
 }
